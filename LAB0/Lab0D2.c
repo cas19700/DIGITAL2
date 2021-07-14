@@ -59,14 +59,17 @@
 //Variables
 //******************************************************************************
 uint8_t    num = 3;     //Variable para el numero
-uint8_t    num2 = 0;     //Variable para el numero
-uint8_t    num3 = 0;     //Variable para el numero
-uint8_t    seg = 0;     //Variable para el numero
+uint8_t    num2 = 0;     //Variable para el numero1
+uint8_t    num3 = 0;     //Variable para el numero2
+uint8_t    seg = 0;     //Variable para segundos
 uint8_t    band = 0;    //Variable banderas para el display
-uint8_t    cent = 0;    //Variable centenas
-uint8_t    dece = 0;    //Variable decenas
-uint8_t    uni = 0;     //Variable unidades
-uint8_t    inicio = 0;     //Variable unidades
+uint8_t    inicio = 0;     //Variable de inicio
+uint8_t    pushp = 0;     //Variable pushpresionado
+uint8_t    g1 = 0;     //Variable ganador1
+uint8_t    g2 = 0;     //Variable ganador2
+uint8_t    disp = 0;     //Variable display
+uint8_t    uno = 1;     //Variable uno
+uint8_t    dos = 2;     //Variable dos
 int Display[10] = {0x3f,0x06,0x5b,0x4f,0x66,0x6d,0x7d,0x07,0x7f,0x67};
                         //Array para la tabla
 
@@ -80,17 +83,17 @@ void __interrupt() isr(void)
     { 
     
     if(T0IF == 1 && inicio == 1){
-        seg++;
-        if(seg == 20){
+        seg++;                          //incrementar la variable por interrup.
+        if(seg == 20){                  //al llegar a 20 se cumple un segundo
             if(num == 0){
-                inicio = 0;
-                INTCONbits.T0IE = 0;       //Incrementar el Puerto A
+                inicio = 0;             //Poner inicio y la interrupcion en 0
+                INTCONbits.T0IE = 0;     
                 
             }
             else{
-                num--;
+                num--;                  //si no seguir decrementando
             }
-            seg = 0;
+            seg = 0;                    //reiniciar variables
             rst_tmr0();
     }
         else{
@@ -99,39 +102,59 @@ void __interrupt() isr(void)
         }
       
     
-	if(RBIF == 1){              //Interrupcion del Puerto B
-                        
-            if(RB0 == 0){
-                if (num == 0){
+	if(RBIF == 1){              //Interrupcion del Puerto B         
+            if(RB0 == 1){
+                if ((num == 3)&&((g1 == 1)||(g2 == 1))){ //Resetear
                 setup();
                 num = 3;
+                num2 = 0;
+                num3 = 0;
+                g1 = 0;
+                g2 = 0;
+                inicio = 0;
+                disp = 0;
                 }
-                else{
+                else if (num == 3){
                 inicio = 1;
-                INTCONbits.T0IE = 1;       //Incrementar el Puerto A
+                INTCONbits.T0IE = 1;       //Iniciar el juego
                 rst_tmr0();
                 }}
-            else if(RB1 == 0 && num == 0){
-                if(num2 == 0){
-                    num2 = 1;
+            /*if(RB1 == 1 && RB2 == 1 && num == 0){
+                if(RB1 == 0){
+                    num2 = num2*2;
+                    PORTC = num2;
                 }
                 else{
                 num2 = num2*2;
                 PORTC = num2;               //Decrementar el Puerto A
             }
-            }    
-            else if(RB2 == 0 && num == 0){
+            }*/
+            if(RB1 == 1 && num == 0){       //Boton 1
+                if(RB2 == 1){
+                    return;
+                }
+                else{
+                if(num2 == 0){              //La primera vez poner en 1
+                    num2 = 1;
+                }
+                else{
+                num2 = num2*2;
+                PORTC = num2;               //Multiplicar por 2 y mover
+            }
+                }}    
+            else if(RB2 == 1 && num == 0){  //Boton 2
+                
+                
                 if(num3 == 0){
-                    num3 = 1;
+                    num3 = 1;               //Primera vez en 1
                 }
                 else{
                 num3 = num3*2;
-                PORTD = num3;        //Decrementar el Puerto A
+                PORTD = num3;               //Multiplicar por 2 y mover
             }
-            }
-            else {
-            }
-        INTCONbits.RBIF = 0;    //Limpiar al bandera 
+                }
+           
+        INTCONbits.RBIF = 0;    //Limpiar la bandera 
       }
      }
     
@@ -142,8 +165,26 @@ void __interrupt() isr(void)
     void main(void){
         setup();                //Llamar las configutaciones
         while(1)                //Siempre realizar el ciclo
-        {PORTA = Display[num];           //La variable numero siempre igual al puerto A
-        if(num2 == 128 || num3 == 128){
+        {
+        if(disp == 0){
+        PORTA = Display[num];           //Elegir variable del 7 segmentos
+        }
+        else if(disp == 1){
+        PORTA = Display[uno];
+        }
+        else if(disp == 2){
+        PORTA = Display[dos];
+        }
+        
+        if(num2 == 128 || num3 == 128){// Mostrar en el 7 segmentos quien gano
+            if(num2 == 128){
+                g1 = 1;
+                disp = 1;
+            }
+            else if (num3 = 128){
+                g2 = 1;
+                disp = 2;
+            }
             inicio = 0;
             num = 3;
         }
@@ -151,7 +192,13 @@ void __interrupt() isr(void)
             PORTC = num2;
             PORTD = num3;
         }
-        if(num == 3){
+        if(g1 == 1){                    //Encender LED del ganador
+                PORTBbits.RB3 = 1;
+            }
+        else if (g2 == 1){
+                PORTBbits.RB4 = 1;    
+            }
+        if(num == 3){                   //Control del semaforo
             PORTEbits.RE0 = 1;
         }
         else if(num == 2){
@@ -167,7 +214,7 @@ void __interrupt() isr(void)
             PORTEbits.RE1 = 1;
             PORTEbits.RE0 = 1;
         }
-        //unidades();             //Llamar la funcion para separar unidades
+       
         }
     }
     
