@@ -36,6 +36,7 @@
 #include "I2C.h"
 #include "LCD.h"
 #include <xc.h>
+
 //*****************************************************************************
 // Definición de variables
 //*****************************************************************************
@@ -43,13 +44,12 @@
 
 #define RS RC0
 #define EN RC1
-#define RW RC2
 #define D0 RD0
 #define D1 RD1
 #define D2 RD2
 #define D3 RD3
 #define D4 RD4
-#define D5 RB5
+#define D5 RD5
 #define D6 RD6
 #define D7 RD7
 
@@ -75,13 +75,13 @@ void main(void) {
     Lcd_Init();             //Iniciar el LCD
     Lcd_Clear();
     while(1){
+//          CCPR1L = 128 ;               //Valor del ADC a PWM
+        I2C_Master_Start();
+        I2C_Master_Write(0x51);
+        Stemp = I2C_Master_Read(0);
+        I2C_Master_Stop();
       
-//        I2C_Master_Start();
-//        I2C_Master_Write(0x51);
-//        Stemp = I2C_Master_Read(0);
-//        I2C_Master_Stop();
-//      
-//        __delay_ms(200);
+        __delay_ms(200);
         
 //        I2C_Master_Start();
 //        I2C_Master_Write(0x61);
@@ -98,25 +98,31 @@ void main(void) {
             Lcd_Write_String("Abierto");
             PORTAbits.RA0 = 1;
             PORTAbits.RA1 = 0;
+            CCPR1L = 250;
+            //Stemp = 0;
         }
         else{
             Lcd_Set_Cursor(2,1);
             Lcd_Write_String("Cerrado");
             PORTAbits.RA1 = 1;
             PORTAbits.RA0 = 0;
+            CCPR1L = 128;
+            //Stemp = 1;
             
+            //CCP1CONbits.DC1B1 = 255;     //bits menos significativos
+            //CCP1CONbits.DC1B0 = 0;
         }
-//        __delay_ms(100);
+        __delay_ms(1000);
 //        Lcd_Set_Cursor(2,7);          //Escribir los valores del voltaje 2
 //        sprintf(vol2, "%3.0i",S2);
 //        Lcd_Write_String(vol2);
 //        __delay_ms(100);
 //        Lcd_Set_Cursor(2,14);          //Escribir los valores del contador
 //        sprintf(vol3, "%5.2i",Sensor);
-//        Lcd_Write_String(vol3);
-//        __delay_ms(100);
-//        PORTAbits.RA1 = ~PORTAbits.RA1;
-          //PORTAbits.RA1 = 1;
+////        Lcd_Write_String(vol3);
+//        __delay_ms(1000);
+        PORTAbits.RA2 = ~PORTAbits.RA2;
+//          //PORTAbits.RA1 = 1;
     }
     return;
 }
@@ -128,13 +134,14 @@ void setup(void){
     ANSELH = 0;
     TRISA = 0;
     TRISB = 0;
+    TRISC = 0b11000000;
     TRISD = 0;
     TRISE = 0;
     PORTB = 0;
     PORTD = 0;
-    PORTA = 0;
-    PORTC = 0;
+    PORTA = 0; 
     PORTE = 0;
+    PORTC = 0;
     
     
      //Configuracion del oscilador
@@ -142,7 +149,22 @@ void setup(void){
     OSCCONbits.IRCF1 = 1;
     OSCCONbits.IRCF0 = 1;
     OSCCONbits.SCS = 1;
-   
+    //Configuración del PWM
+    TRISCbits.TRISC2 = 1;       //CCP1 como entrada para poder configurar
+    
+    PR2 = 250;                  //tmr2 en 2ms 
+    CCP1CONbits.P1M = 0;        //Modo Single Output
+    CCP1CONbits.CCP1M = 0b00001100; //Activamos el PWM
+    CCPR1L = 0x0f;
+    CCP1CONbits.DC1B = 0;
+    PIR1bits.TMR2IF = 0;
+    T2CONbits.T2CKPS = 0b11;    //Prescaler en 1:16
+    T2CONbits.TMR2ON = 1;       //Encender el timer2
+    while(!PIR1bits.TMR2IF);    //Ciclo del tmr2
+    PIR1bits.TMR2IF = 0;
+    TRISCbits.TRISC2 = 0;       //CCP1 como salida
+    
+    
     I2C_Master_Init(100000);        // Inicializar Comuncación I2C
 }
 //******************************************************************************

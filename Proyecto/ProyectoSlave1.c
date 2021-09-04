@@ -37,7 +37,7 @@
 // Definición de variables
 //*****************************************************************************
 #define _XTAL_FREQ 8000000
-int         a;
+uint8_t         a;
 uint8_t     z;
 uint8_t     dato;
 uint8_t     num = 0;     //Variable para el numero del adc
@@ -69,10 +69,10 @@ void __interrupt() isr(void){
             PIR1bits.SSPIF = 0;         // Limpia bandera de interrupción recepción/transmisión SSP
             SSPCONbits.CKP = 1;         // Habilita entrada de pulsos de reloj SCL
             while(!SSPSTATbits.BF);     // Esperar a que la recepción se complete
-            //PORTD = SSPBUF;             // Guardar en el PORTD el valor del buffer de recepción
-            __delay_us(250);
-            
-        }else if(!SSPSTATbits.D_nA && SSPSTATbits.R_nW){
+            PORTD = SSPBUF;             // Guardar en el PORTD el valor del buffer de recepción
+            __delay_us(250);    
+        }
+        else if(!SSPSTATbits.D_nA && SSPSTATbits.R_nW){
             z = SSPBUF;
             BF = 0;
             SSPBUF = dato;         
@@ -163,6 +163,7 @@ void setup(void){
     TRISB = 0b00010000;           //RB4 as Input PIN (ECHO)
     TRISD = 0x00; // LCD Pins as Output
     TRISA = 0x00; // LCD Pins as Output
+    TRISC = 0b00000001; // LCD Pins as Output
     
     PORTA = 0;
     PORTB = 0;
