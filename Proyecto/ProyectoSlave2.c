@@ -31,6 +31,7 @@
 //*****************************************************************************
 #include <stdint.h>
 #include <pic16f887.h>
+#include "I2C.h"
 #include <xc.h>
 //*****************************************************************************
 // Definición de variables
@@ -40,6 +41,7 @@
 #define DHT11_PIN_Direction TRISAbits.TRISA0
 
 uint8_t bandera;
+uint8_t     z;
 uint8_t dato;
 uint8_t T_byte1, T_byte2, RH_byte1, RH_byte2, CheckSum ;
 //*****************************************************************************
@@ -51,6 +53,44 @@ void Start_Signal(void);
 uint8_t Check_Response(void);
 uint8_t Read_Data(uint8_t* dht_data);
 //*****************************************************************************
+// Código de Interrupción 
+//*****************************************************************************
+void __interrupt() isr(void){
+     if(PIR1bits.SSPIF == 1){ 
+
+        SSPCONbits.CKP = 0;
+       
+        if ((SSPCONbits.SSPOV) || (SSPCONbits.WCOL)){
+            z = SSPBUF;                 // Read the previous value to clear the buffer
+            SSPCONbits.SSPOV = 0;       // Clear the overflow flag
+            SSPCONbits.WCOL = 0;        // Clear the collision bit
+            SSPCONbits.CKP = 1;         // Enables SCL (Clock)
+        }
+
+        if(!SSPSTATbits.D_nA && !SSPSTATbits.R_nW) {
+            //__delay_us(7);
+            z = SSPBUF;                 // Lectura del SSBUF para limpiar el buffer y la bandera BF
+            //__delay_us(2);
+            PIR1bits.SSPIF = 0;         // Limpia bandera de interrupción recepción/transmisión SSP
+            SSPCONbits.CKP = 1;         // Habilita entrada de pulsos de reloj SCL
+            while(!SSPSTATbits.BF);     // Esperar a que la recepción se complete
+            //PORTB = SSPBUF;             // Guardar en el PORTD el valor del buffer de recepción
+            __delay_us(250);    
+        }
+        else if(!SSPSTATbits.D_nA && SSPSTATbits.R_nW){
+            z = SSPBUF;
+            BF = 0;
+            SSPBUF = dato;         
+            SSPCONbits.CKP = 1;
+            __delay_us(250);
+            while(SSPSTATbits.BF);
+        }
+       
+        PIR1bits.SSPIF = 0;    
+    }
+    
+}
+//*****************************************************************************
 // Main
 //*****************************************************************************
 void main(void) {
@@ -60,42 +100,47 @@ void main(void) {
     //*************************************************************************
     while(1){
         Start_Signal();                // Send start signal to the sensor
- 
+        //dato = 10;
         if(Check_Response()) {         // Check if there is a response from sensor (If OK start reding humidity and temperature data)
         // Read (and save) data from the DHT11 sensor and check time out errors
             if(Read_Data(&RH_byte1) || Read_Data(&RH_byte2) || Read_Data(&T_byte1) || Read_Data(&T_byte2) || Read_Data(&CheckSum)) {
-            PORTBbits.RB0 = 1;
+            PORTDbits.RD0 = 1;
+            PORTDbits.RD1 = 0;
+            PORTDbits.RD2 = 0;
+            PORTDbits.RD3 = 0;
         }
         else {                                               // If there is no time out error
             if(CheckSum == ((RH_byte1 + RH_byte2 + T_byte1 + T_byte2) & 0xFF)) {
                 // If there is no checksum error
-                PORTBbits.RB0 = 0;
-                PORTBbits.RB1 = 0;
-                PORTBbits.RB2 = 0;
-                dato = T_byte1;
-                PORTD = dato;
+                PORTDbits.RD0 = 0;
+                PORTDbits.RD1 = 1;
+                PORTDbits.RD2 = 0;
+                PORTDbits.RD3 = 0;
+                dato = RH_byte1;
+                //dato = 22;
+                //PORTD = dato;
             }
         // If there is a checksum error
             else {
-                PORTBbits.RB1 = 1;
+                PORTDbits.RD0 = 0;
+                PORTDbits.RD1 = 0;
+                PORTDbits.RD2 = 1;
+                PORTDbits.RD3 = 0;
             }
         }
         }
     // If there is a response (from the sensor) problem
         else {
-            PORTBbits.RB2 = 1;
+            PORTDbits.RD0 = 0;
+            PORTDbits.RD1 = 0;
+            PORTDbits.RD2 = 0;
+            PORTDbits.RD3 = 1;
         }
         
-        if(dato >= 25){
-            PORTEbits.RE0 = 1;
-        }
-        else{
-            PORTEbits.RE0 = 0;
-        }
-        
-        TMR1ON = 0;                        // Disable Timer1 module
+        T1CONbits.TMR1ON = 0;                        // Disable Timer1 module
         __delay_ms(1000);                        // Wait 1 second
     }
+    
 }
 //*****************************************************************************
 // Función de Inicialización
@@ -124,6 +169,8 @@ void setup(void){
     T1CONbits.T1CKPS1 = 0;
     TMR1H = 0;
     TMR1L = 0;
+    
+    I2C_Slave_Init(0x60);  
 }
 //******************************************************************************
 // Funciones
@@ -141,7 +188,7 @@ void Start_Signal(void){
 uint8_t Check_Response(void) {
   TMR1H = 0;                                  // Reset Timer1
   TMR1L = 0;
-  TMR1ON = 1;                             // Enable Timer1 module
+  T1CONbits.TMR1ON = 1;                             // Enable Timer1 module
   while(!DHT11_PIN && TMR1L < 100);           // Wait until DHT11_PIN becomes high (cheking of 80µs low time response)
   if(TMR1L > 99)                              // If response time > 99µS  ==> Response error
     return 0;                                 // Return 0 (Device has a problem with response)

@@ -116,11 +116,15 @@ void main(void) {
     if (PORTCbits.RC0 == 1){  //se lee el pin del sensor IR, 
             PORTBbits.RB1  = 1;    //Se activa la funcion cuando detecta obstaculo
             PORTBbits.RB2  = 0;    //Se activa la funcion cuando detecta obstaculo
+            CCPR1L = 250;
                           //En esta progra se utilizo un led para indicar obstaculo
+            dato = 0;
         }
         else{
             PORTBbits.RB2 = 1;   //Se activa otra funcion al no detectar obstaculo
             PORTBbits.RB1 = 0;   //Se activa otra funcion al no detectar obstaculo
+            CCPR1L = 128;
+            dato = 1;
         }
        TMR1H = 0;                  //Sets the Initial Value of Timer
        TMR1L = 0;                  //Sets the Initial Value of Timer
@@ -134,15 +138,15 @@ void main(void) {
         PORTAbits.RA3 = 1;  
         if(a>=2 && a<=400)          //Check whether the result is valid or not
         {
-            if(a<12){
+            if(a<15){
              PORTAbits.RA0 = 1;
              PORTAbits.RA1 = 0;
-             dato = 1;
+             
             }
             else{
              PORTAbits.RA0 = 0;
              PORTAbits.RA1 = 1;
-             dato = 0;
+             
              }}
         else
         {
@@ -174,11 +178,24 @@ void setup(void){
     OSCCONbits.IRCF1 = 1;
     OSCCONbits.IRCF0 = 1;
     OSCCONbits.SCS = 1;
+    //Configuración del PWM
+    TRISCbits.TRISC2 = 1;       //CCP1 como entrada para poder configurar
+    
+    PR2 = 250;                  //tmr2 en 2ms 
+    CCP1CONbits.P1M = 0;        //Modo Single Output
+    CCP1CONbits.CCP1M = 0b00001100; //Activamos el PWM
+    CCPR1L = 0x0f;
+    CCP1CONbits.DC1B = 0;
+    PIR1bits.TMR2IF = 0;
+    T2CONbits.T2CKPS = 0b11;    //Prescaler en 1:16
+    T2CONbits.TMR2ON = 1;       //Encender el timer2
+    while(!PIR1bits.TMR2IF);    //Ciclo del tmr2
+    PIR1bits.TMR2IF = 0;
+    TRISCbits.TRISC2 = 0;       //CCP1 como salida
     
     OPTION_REGbits.nRBPU = 0;
     WPUBbits.WPUB4 = 1;
  
-  
     INTCONbits.RBIE = 1;
     INTCONbits.RBIF = 0;
     IOCBbits.IOCB4 = 1;

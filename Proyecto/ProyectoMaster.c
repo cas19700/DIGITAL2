@@ -35,6 +35,7 @@
 #include <pic16f887.h>
 #include "I2C.h"
 #include "LCD.h"
+#include "UART.h"
 #include <xc.h>
 
 //*****************************************************************************
@@ -55,18 +56,33 @@
 
 uint8_t   Stemp = 0;     //Variable para el numero1 del adc
 uint8_t   S2 = 0;     //Variable para el numero1 del adc
+uint8_t   cont = 0;     //Variable para el numero1 del adc
 int16_t   Sensor = 0;     //Variable para el numero1 del adc
 float     S1 = 0;     //Variable para el numero del adc
-char vol1[10];
-char vol2[10];
-char vol3[20];
+double   num = 0;           //Variable para el numero 1
+char v1[10];            //Variable para desplegar el valor
+//char v2[80];            //Variable para desplegar el valor
+char humedad[] = "00%  ";
+char Sensor1[] = "00%  ";
+float     c1 = 0;         //Variables de voltages
+float     c2 = 0;
+char voltage1[10];
+char voltage2[10];
+char menu[] = "\rQue accion desea ejecutar? \r"; 
 
 //*****************************************************************************
 // Definición de funciones para que se puedan colocar después del main de lo 
 // contrario hay que colocarlos todas las funciones antes del main
 //*****************************************************************************
 void setup(void);
-
+void __interrupt() isr(void)
+    {    
+	if(PIR1bits.RCIF == 1){
+                            // Si se presiona mandar a contador
+           cont = RCREG;    
+        }
+    return;
+}
 //*****************************************************************************
 // Main
 //*****************************************************************************
@@ -75,7 +91,7 @@ void main(void) {
     Lcd_Init();             //Iniciar el LCD
     Lcd_Clear();
     while(1){
-//          CCPR1L = 128 ;               //Valor del ADC a PWM
+
         I2C_Master_Start();
         I2C_Master_Write(0x51);
         Stemp = I2C_Master_Read(0);
@@ -83,46 +99,68 @@ void main(void) {
       
         __delay_ms(200);
         
-//        I2C_Master_Start();
-//        I2C_Master_Write(0x61);
-//        S2 = I2C_Master_Read(0);
-//        I2C_Master_Stop();
-//        __delay_ms(200);
+        I2C_Master_Start();
+        I2C_Master_Write(0x61);
+        S2 = I2C_Master_Read(0);
+        I2C_Master_Stop();
+        humedad[0] = S2/10 + 48;
+        humedad[1] = S2%10 + 48;
+        __delay_ms(200);
           
-        
+        Sensor1[0] = Stemp%10 + 48;
         Lcd_Set_Cursor(1,1);
         Lcd_Write_String("S1:   S2:    S3:");   //Titulos en la línea 1
         __delay_ms(100);
         if(Stemp == 1){
             Lcd_Set_Cursor(2,1);
-            Lcd_Write_String("Abierto");
+            Lcd_Write_String("Open ");
             PORTAbits.RA0 = 1;
             PORTAbits.RA1 = 0;
-            CCPR1L = 250;
-            //Stemp = 0;
+            //CCPR1L = 250;
+            
         }
         else{
             Lcd_Set_Cursor(2,1);
-            Lcd_Write_String("Cerrado");
+            Lcd_Write_String("Close");
             PORTAbits.RA1 = 1;
             PORTAbits.RA0 = 0;
-            CCPR1L = 128;
-            //Stemp = 1;
-            
-            //CCP1CONbits.DC1B1 = 255;     //bits menos significativos
-            //CCP1CONbits.DC1B0 = 0;
+            //CCPR1L = 128;
+           
         }
-        __delay_ms(1000);
-//        Lcd_Set_Cursor(2,7);          //Escribir los valores del voltaje 2
-//        sprintf(vol2, "%3.0i",S2);
-//        Lcd_Write_String(vol2);
-//        __delay_ms(100);
-//        Lcd_Set_Cursor(2,14);          //Escribir los valores del contador
-//        sprintf(vol3, "%5.2i",Sensor);
-////        Lcd_Write_String(vol3);
-//        __delay_ms(1000);
-        PORTAbits.RA2 = ~PORTAbits.RA2;
+        __delay_ms(100);
+        Lcd_Set_Cursor(2,7);          //Escribir los valores del voltaje 2
+        //sprintf(vol2, "%3.0i",S2);
+        Lcd_Write_String(humedad);
+        __delay_ms(100);
+        Lcd_Set_Cursor(2,14);          //Escribir los valores del contador
+        //sprintf(vol3, "%2.0i",Stemp);
+        Lcd_Write_String(Sensor1);
+        __delay_ms(100);
+        
 //          //PORTAbits.RA1 = 1;
+ //        __delay_ms(1000);
+    
+//       sprintf(v1, "%2.0f,%2.0f,%2.0f,",num,num,num);
+//       letras(v1);          //Valores correspondientes del v1
+   //      sprintf(voltage1,"Vol1: %2.0fV",c1);  //Mostrar valor en la consola
+ //        printf("%s", voltage1);
+       
+         ubicacion(44);
+         ubicacion(humedad[0]);
+         ubicacion(humedad[1]);
+         ubicacion(44);
+         ubicacion(Sensor1[0]);
+         ubicacion(44);
+//       sprintf(voltage2,"Voltaje 2: %3.2fV",c2);
+//        
+//       TXREG = '\f';                              // //Impresión en la terminal         
+//       letras(voltage1);
+//       TXREG = '\r';
+//       letras(voltage2);
+//       TXREG = '\r';
+        
+       __delay_ms(100);
+       PORTAbits.RA2 = ~PORTAbits.RA2;
     }
     return;
 }
@@ -132,11 +170,13 @@ void main(void) {
 void setup(void){
     ANSEL = 0;
     ANSELH = 0;
+    
     TRISA = 0;
     TRISB = 0;
     TRISC = 0b11000000;
     TRISD = 0;
     TRISE = 0;
+    
     PORTB = 0;
     PORTD = 0;
     PORTA = 0; 
@@ -149,20 +189,21 @@ void setup(void){
     OSCCONbits.IRCF1 = 1;
     OSCCONbits.IRCF0 = 1;
     OSCCONbits.SCS = 1;
-    //Configuración del PWM
-    TRISCbits.TRISC2 = 1;       //CCP1 como entrada para poder configurar
-    
-    PR2 = 250;                  //tmr2 en 2ms 
-    CCP1CONbits.P1M = 0;        //Modo Single Output
-    CCP1CONbits.CCP1M = 0b00001100; //Activamos el PWM
-    CCPR1L = 0x0f;
-    CCP1CONbits.DC1B = 0;
-    PIR1bits.TMR2IF = 0;
-    T2CONbits.T2CKPS = 0b11;    //Prescaler en 1:16
-    T2CONbits.TMR2ON = 1;       //Encender el timer2
-    while(!PIR1bits.TMR2IF);    //Ciclo del tmr2
-    PIR1bits.TMR2IF = 0;
-    TRISCbits.TRISC2 = 0;       //CCP1 como salida
+
+    //Configuracion de TX y RX
+    TXSTAbits.SYNC = 0;
+    TXSTAbits.BRGH = 1;
+    BAUDCTLbits.BRG16 = 1;
+    SPBRG = 207;
+    SPBRGH = 0;
+    RCSTAbits.SPEN = 1;
+    RCSTAbits.RX9 = 0;
+    RCSTAbits.CREN = 1;
+    TXSTAbits.TXEN = 1;
+    PIR1bits.RCIF = 0;
+    PIE1bits.RCIE = 1;
+//    INTCONbits.PEIE = 1;
+//    INTCONbits.GIE = 1;
     
     
     I2C_Master_Init(100000);        // Inicializar Comuncación I2C
