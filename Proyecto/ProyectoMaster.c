@@ -1,8 +1,8 @@
 /*
  * File:   ProyectoMaster.c
- * Author: Brayan Castillo
+ * Author: Brayan Castillo y Juan Lux
  * I2C Master
- * Created on agosto de 2021
+ * Created on 18 de agosto de 2021
  */
 //*****************************************************************************
 // Palabra de configuración
@@ -54,21 +54,16 @@
 #define D6 RD6
 #define D7 RD7
 
-uint8_t   Stemp = 0;     //Variable para el numero1 del adc
-uint8_t   S2 = 0;     //Variable para el numero1 del adc
-uint8_t   cont = 0;     //Variable para el numero1 del adc
-int16_t   Sensor = 0;     //Variable para el numero1 del adc
-float     S1 = 0;     //Variable para el numero del adc
-double   num = 0;           //Variable para el numero 1
-char v1[10];            //Variable para desplegar el valor
-//char v2[80];            //Variable para desplegar el valor
+uint8_t   Stemp = 0;     //Variable para el Sensor del basurero
+uint8_t   S2 = 0;        //Variable para el Sensor de humedad
+uint8_t   cont = 0;      //Variable para el Contador del ultrasonico
+uint8_t   contu = 0;     //Variable para el Contador del ultrasonico Dec y Uni
+
+//Variables para enviar a Python
 char humedad[] = "00%  ";
-char Sensor1[] = "00%  ";
-float     c1 = 0;         //Variables de voltages
-float     c2 = 0;
-char voltage1[10];
-char voltage2[10];
-char menu[] = "\rQue accion desea ejecutar? \r"; 
+char Sensor1[] = "000  ";
+char Stemp1[]  = "000  ";
+
 
 //*****************************************************************************
 // Definición de funciones para que se puedan colocar después del main de lo 
@@ -87,78 +82,73 @@ void __interrupt() isr(void)
 // Main
 //*****************************************************************************
 void main(void) {
-    setup();
+    setup();                //Configuraciones
     Lcd_Init();             //Iniciar el LCD
     Lcd_Clear();
     while(1){
 
-        I2C_Master_Start();
-        I2C_Master_Write(0x51);
-        Stemp = I2C_Master_Read(0);
+        I2C_Master_Start();         //Llamar la direccion 71 y leerla
+        I2C_Master_Write(0x71);
+        Stemp = I2C_Master_Read(0); //Guardar en una variable
         I2C_Master_Stop();
-      
+        Stemp1[0]= Stemp + 48;      //Guardar el valor y pasarlo a ASCII
         __delay_ms(200);
         
-        I2C_Master_Start();
+        I2C_Master_Start();         //Llamar la direccion 51 y leerla
+        I2C_Master_Write(0x51);
+        cont = I2C_Master_Read(0);  //Guardar la variable
+        I2C_Master_Stop();
+        Sensor1[0] = cont/100 + 48; //Dividir en centenas, decenas y unidades
+        contu = cont%100;           //y pasarlo a ASCII
+        Sensor1[1] = contu/10 + 48;
+        Sensor1[2] = contu%10 + 48;
+        __delay_ms(200);
+        
+        I2C_Master_Start();         //Llmara la direccion 61 y leerla
         I2C_Master_Write(0x61);
         S2 = I2C_Master_Read(0);
         I2C_Master_Stop();
-        humedad[0] = S2/10 + 48;
-        humedad[1] = S2%10 + 48;
+        humedad[0] = S2/10 + 48;    //Dividir en centenas y unidades 
+        humedad[1] = S2%10 + 48;    //y pasarlo a ASCII
         __delay_ms(200);
           
-        Sensor1[0] = Stemp%10 + 48;
+        
         Lcd_Set_Cursor(1,1);
-        Lcd_Write_String("S1:   S2:    S3:");   //Titulos en la línea 1
+        Lcd_Write_String("S1:   S2:   S3:");   //Titulos en la línea 1
         __delay_ms(100);
         if(Stemp == 1){
             Lcd_Set_Cursor(2,1);
-            Lcd_Write_String("Open ");
+            Lcd_Write_String("Open ");         //Si es 1 basurero abierto
             PORTAbits.RA0 = 1;
             PORTAbits.RA1 = 0;
-            //CCPR1L = 250;
             
         }
         else{
             Lcd_Set_Cursor(2,1);
-            Lcd_Write_String("Close");
+            Lcd_Write_String("Close");         //Si es 0 basurero cerrado
             PORTAbits.RA1 = 1;
             PORTAbits.RA0 = 0;
-            //CCPR1L = 128;
            
         }
         __delay_ms(100);
-        Lcd_Set_Cursor(2,7);          //Escribir los valores del voltaje 2
-        //sprintf(vol2, "%3.0i",S2);
+        Lcd_Set_Cursor(2,7);          //Escribir los valores de humedad
         Lcd_Write_String(humedad);
         __delay_ms(100);
-        Lcd_Set_Cursor(2,14);          //Escribir los valores del contador
-        //sprintf(vol3, "%2.0i",Stemp);
+        Lcd_Set_Cursor(2,13);          //Escribir los valores del contador
         Lcd_Write_String(Sensor1);
         __delay_ms(100);
         
-//          //PORTAbits.RA1 = 1;
- //        __delay_ms(1000);
-    
-//       sprintf(v1, "%2.0f,%2.0f,%2.0f,",num,num,num);
-//       letras(v1);          //Valores correspondientes del v1
-   //      sprintf(voltage1,"Vol1: %2.0fV",c1);  //Mostrar valor en la consola
- //        printf("%s", voltage1);
-       
-         ubicacion(44);
-         ubicacion(humedad[0]);
+         ubicacion(44);                 //Separar los valores por comas
+         ubicacion(humedad[0]);         //y enviarlos a Python
          ubicacion(humedad[1]);
          ubicacion(44);
-         ubicacion(Sensor1[0]);
+         ubicacion(Stemp1[0]);
          ubicacion(44);
-//       sprintf(voltage2,"Voltaje 2: %3.2fV",c2);
-//        
-//       TXREG = '\f';                              // //Impresión en la terminal         
-//       letras(voltage1);
-//       TXREG = '\r';
-//       letras(voltage2);
-//       TXREG = '\r';
-        
+         ubicacion(Sensor1[0]);
+         ubicacion(Sensor1[1]);
+         ubicacion(Sensor1[2]);
+         ubicacion(44);
+
        __delay_ms(100);
        PORTAbits.RA2 = ~PORTAbits.RA2;
     }
@@ -168,6 +158,7 @@ void main(void) {
 // Función de Inicialización
 //*****************************************************************************
 void setup(void){
+    //Configuracion de los puertos
     ANSEL = 0;
     ANSELH = 0;
     
@@ -183,8 +174,7 @@ void setup(void){
     PORTE = 0;
     PORTC = 0;
     
-    
-     //Configuracion del oscilador
+    //Configuracion del oscilador 8MHz
     OSCCONbits.IRCF2 = 1;
     OSCCONbits.IRCF1 = 1;
     OSCCONbits.IRCF0 = 1;
@@ -202,10 +192,7 @@ void setup(void){
     TXSTAbits.TXEN = 1;
     PIR1bits.RCIF = 0;
     PIE1bits.RCIE = 1;
-//    INTCONbits.PEIE = 1;
-//    INTCONbits.GIE = 1;
-    
-    
+
     I2C_Master_Init(100000);        // Inicializar Comuncación I2C
 }
 //******************************************************************************

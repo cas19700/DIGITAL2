@@ -1,7 +1,7 @@
 /*
- * File:   ProyectoSlave1.c
+ * File:   ProyectoSlave3.c
  * Author: Brayan Castillo y Juan Lux
- * Sensor Ultrasonico
+ * Sensor Infrarojo
  * Created on 18 de agosto de 2021
  */
 //*****************************************************************************
@@ -39,7 +39,7 @@
 #define _XTAL_FREQ 8000000
 uint8_t         a;
 uint8_t     z;
-uint8_t     dato = 0;
+uint8_t     dato;
 //*****************************************************************************
 // Definición de funciones para que se puedan colocar después del main de lo 
 // contrario hay que colocarlos todas las funciones antes del main
@@ -55,7 +55,7 @@ void __interrupt() isr(void){
        
         if ((SSPCONbits.SSPOV) || (SSPCONbits.WCOL)){
             z = SSPBUF;                 // Leer el valor del buffer
-            SSPCONbits.SSPOV = 0;       // Limpiar banderas
+            SSPCONbits.SSPOV = 0;       // Limpiar bandera
             SSPCONbits.WCOL = 0;        // Limpiar el bit de colision
             SSPCONbits.CKP = 1;         // Encender el SCL
         }
@@ -71,7 +71,7 @@ void __interrupt() isr(void){
         else if(!SSPSTATbits.D_nA && SSPSTATbits.R_nW){
             z = SSPBUF;                 //Lectura del SSBUF para limpiar el buffer
             BF = 0;
-            SSPBUF = dato;              //Enviar dato al buffer   
+            SSPBUF = dato;              //Enviar dato al buffer
             SSPCONbits.CKP = 1;         //Encender el SCL
             __delay_us(250);
             while(SSPSTATbits.BF);      //Esperar
@@ -79,63 +79,33 @@ void __interrupt() isr(void){
        
         PIR1bits.SSPIF = 0;             //Limpiar bandera
     }
-    if(RBIF == 1)                 //Si sucede la interrupcion
-    {
-        INTCONbits.RBIE = 0;      
-
-        if(RB4 == 1)                  //Si ECHO se activo
-            T1CONbits.TMR1ON = 1;     //Encender el timer
-        if(RB4 == 0)                  //Si ECHO no se activo
-        {
-            T1CONbits.TMR1ON = 0;     //Detener el timer
-            a = (TMR1L | (TMR1H<<8))/58.82;  //Calculo de la distancia
-        }
-        INTCONbits.RBIF = 0;          //Limpiar la bandera
-        INTCONbits.RBIE = 1;
- 
-    return;
-    }
-    
     
 }
 //*****************************************************************************
 // Main
 //*****************************************************************************
 void main(void) {
-    setup();        //Llamar configuraciones y activar bit de T1CON
-    T1CON = 0x10;
+    setup();                    //Llamar las configuraciones
     //*************************************************************************
     // Loop infinito
     //*************************************************************************
     while(1){
-       TMR1H = 0;                  //Reiniciar valores del timer1
-       TMR1L = 0;                  
-
-        PORTBbits.RB0 = 1;            //Enviar pulso y esperar 10uS
-        __delay_us(10);               
-        PORTBbits.RB0 = 0;            //Detener el pulso
-
-        __delay_ms(100);              //Delay para esperar el ECHO
-        a = a + 1;                    //Ajuste del sensor ultrasonico
-        PORTAbits.RA3 = 1;  
-        if(a>=2 && a<=400)          //Verificar que el valor este en el rango
-        {
-            if(a<15){               //Si es menor a 15 aumentar contador y
-             PORTAbits.RA0 = 1;     //Encender LED RA0
-             PORTAbits.RA1 = 0;
-             dato=dato++;
-             
-            }
-            else{
-             PORTAbits.RA0 = 0;     //Caso contrario no aumentar contador y 
-             PORTAbits.RA1 = 1;     //Encender LED RA1
-             
-             }}
-        else
-        {
-            PORTAbits.RA2 = 1;      //Si no se encuentra en rango encender RA2
+        
+    if (PORTCbits.RC0 == 1){  //se lee el pin del sensor IR, 
+            PORTBbits.RB1  = 1;    //Se activa el LED cuando no detecta obstaculo
+            PORTBbits.RB2  = 0;    //Se desactiva el LED cuando no detecta obstaculo
+            __delay_ms(1000);      //Esperar 1 segundo
+            CCPR1L = 128;          //Mover el servo
+            dato = 0;              //Escribir en dato
         }
-        __delay_ms(700);
+        else{
+            CCPR1L = 250;          //Mover el servo
+            __delay_ms(1000);      //Esperar 1 segundo
+            PORTBbits.RB2 = 1;     //Se activa el LED al detectar obstaculo
+            PORTBbits.RB1 = 0;     //Se desactiva el LED al detectar obstaculo
+            dato = 1;              //Escribir en dato
+        }
+       
         }
     return;
 }
@@ -147,10 +117,10 @@ void setup(void){
     ANSEL = 0x00;
     ANSELH = 0x00;
      //  Declaramos puertos como entradas o salidas
-    TRISB = 0b00010000;           //RB4 configurado como ECHO
-    TRISD = 0x00;
-    TRISA = 0x00;
-    TRISC = 0b00000000;
+    TRISB = 0b00000000;           
+    TRISD = 0x00; 
+    TRISA = 0x00; 
+    TRISC = 0b00000001; 
     
     PORTA = 0;
     PORTB = 0;
@@ -161,16 +131,23 @@ void setup(void){
     OSCCONbits.IRCF1 = 1;
     OSCCONbits.IRCF0 = 1;
     OSCCONbits.SCS = 1;
-    //Configuracion del Interrupt On-Change del Puerto B
-    OPTION_REGbits.nRBPU = 0;
-    WPUBbits.WPUB4 = 1;
- 
-    INTCONbits.RBIE = 1;
-    INTCONbits.RBIF = 0;
-    IOCBbits.IOCB4 = 1;
+    //Configuración del PWM
+    TRISCbits.TRISC2 = 1;       //CCP1 como entrada para poder configurar
     
-    INTCONbits.PEIE = 1;
-    INTCONbits.GIE = 1;
-    I2C_Slave_Init(0x50);       //Direccion del Esclavo
+    PR2 = 250;                  //tmr2 en 2ms 
+    CCP1CONbits.P1M = 0;        //Modo Single Output
+    CCP1CONbits.CCP1M = 0b00001100; //Activamos el PWM
+    CCPR1L = 0x0f;
+    CCP1CONbits.DC1B = 0;
+    PIR1bits.TMR2IF = 0;
+    T2CONbits.T2CKPS = 0b11;    //Prescaler en 1:16
+    T2CONbits.TMR2ON = 1;       //Encender el timer2
+    while(!PIR1bits.TMR2IF);    //Ciclo del tmr2
+    PIR1bits.TMR2IF = 0;
+    TRISCbits.TRISC2 = 0;       //CCP1 como salida
+    INTCONbits.PEIE = 1;        //Interrupciones perifericas
+    INTCONbits.GIE = 1;         //Interrupciones globales
+    I2C_Slave_Init(0x70);       //Direccion del Esclavo
    
 }
+
