@@ -8,7 +8,7 @@
 uint8_t F = 0;
 uint8_t PB1;
 /**
- * Sem·foro
+ * Sem√°foro
  * IE-3027
  * Editado por Brayan Castillo
  */
