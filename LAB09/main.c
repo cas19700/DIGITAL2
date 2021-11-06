@@ -20,15 +20,15 @@ uint32_t ui32Period;
 
 int main(void)
 {
-    SysCtlClockSet(SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);     //Configuraci髇 del oscilador
+    SysCtlClockSet(SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);     //Configuraci贸n del oscilador
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);                                                //Se habilita el reloj para el puerto F
     GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3);               //Se habilita los pines de F para salidas
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);                                               //Se habilita el reloj para el temporizador
-    TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);                                            //Se configura el timer0 como temporizador per韔dico
-    ui32Period = (SysCtlClockGet())/2;                                                         //Se realiza el c醠culo del per韔do para el temporizador (1seg)
-    TimerLoadSet(TIMER0_BASE, TIMER_A, ui32Period-1);                                          //Se establece el per韔do del temporizador
-    IntEnable(INT_TIMER0A);                                                                    //Se habilita la interrupci髇 por el TIMER0A
-    TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);                                           //Se establece que exista la interrupci髇 por Timeout
+    TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);                                            //Se configura el timer0 como temporizador per铆odico
+    ui32Period = (SysCtlClockGet())/2;                                                         //Se realiza el c谩lculo del per铆odo para el temporizador (1seg)
+    TimerLoadSet(TIMER0_BASE, TIMER_A, ui32Period-1);                                          //Se establece el per铆odo del temporizador
+    IntEnable(INT_TIMER0A);                                                                    //Se habilita la interrupci贸n por el TIMER0A
+    TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);                                           //Se establece que exista la interrupci贸n por Timeout
     IntMasterEnable();
     TimerEnable(TIMER0_BASE, TIMER_A);
 
@@ -38,7 +38,7 @@ int main(void)
 
 void Timer0IntHandler(void)
 {
-    TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);                 //Se limpia la interrupci髇 del timer
+    TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);                 //Se limpia la interrupci贸n del timer
 
     if(GPIOPinRead(GPIO_PORTF_BASE, GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3) == 0)     //Leer el puerto F
     {
